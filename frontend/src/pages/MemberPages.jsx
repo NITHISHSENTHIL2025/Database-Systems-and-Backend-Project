@@ -1,0 +1,10 @@
+import { useEffect, useState } from 'react';
+import ClayCard from '../components/ClayCard.jsx';
+import Table from '../components/Table.jsx';
+import { api } from '../services/api.js';
+
+function MemberTable({ path, title, columns, mapper }) { const [data, setData] = useState([]); const [error, setError] = useState(''); useEffect(() => { api(path).then(setData).catch((e) => setError(e.message)); }, [path]); return <><div className="page-head"><div><span className="eyebrow">MEMBER PORTAL</span><h2>{title}</h2></div></div><ClayCard>{error ? <div className="error-banner">{error}</div> : <Table columns={columns} rows={data.map(mapper)}/>}</ClayCard></>; }
+export function MyMembershipPage() { return <MemberTable path="/member/memberships" title="My membership" columns={['Plan', 'Amount', 'Status', 'Starts', 'Ends']} mapper={(x) => ({ key: x.id, cells: [<strong>{x.plan}</strong>, x.amount ? `₹${x.amount}` : '—', <span className="status-pill success">{x.status}</span>, new Date(x.startDate).toLocaleDateString(), new Date(x.endDate).toLocaleDateString()] })}/>; }
+export function MyAttendancePage() { return <MemberTable path="/member/attendance" title="My attendance" columns={['Date', 'Status']} mapper={(x) => ({ key: x.id, cells: [new Date(x.date).toLocaleString(), <span className="status-pill success">{x.status}</span>] })}/>; }
+export function MyWorkoutsPage() { return <MemberTable path="/member/workouts" title="My workouts" columns={['Workout', 'Trainer', 'Duration', 'Date']} mapper={(x) => ({ key: x.id, cells: [<strong>{x.title || 'Workout'}</strong>, x.trainer?.name || 'Unassigned', x.duration ? `${x.duration} min` : '—', new Date(x.date).toLocaleDateString()] })}/>; }
+export function MyPaymentsPage() { return <MemberTable path="/member/payments" title="My payments" columns={['Reference', 'Amount', 'Status', 'Date']} mapper={(x) => ({ key: x.id, cells: [x.reference, `₹${x.amount}`, <span className="status-pill success">{x.status}</span>, x.paidAt ? new Date(x.paidAt).toLocaleDateString() : '—'] })}/>; }

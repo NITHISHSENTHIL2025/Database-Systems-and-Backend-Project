@@ -1,0 +1,20 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+import * as admin from '../controllers/admin.controller.js';
+
+const router = Router();
+router.use(requireAuth, requireRole('ADMIN'));
+router.get('/memberships', admin.listMemberships);
+router.get('/trainers', admin.listTrainers);
+router.post('/trainers', validate(z.object({ name: z.string().min(2), speciality: z.string().optional(), phone: z.string().optional() })), admin.createTrainer);
+router.get('/attendance', admin.listAttendance);
+router.post('/attendance', validate(z.object({ memberId: z.number().int().positive(), date: z.string(), status: z.enum(['PRESENT', 'ABSENT']).default('PRESENT') })), admin.createAttendance);
+router.get('/workouts', admin.listWorkouts);
+router.post('/workouts', validate(z.object({ memberId: z.number().int().positive(), trainerId: z.number().int().positive().optional(), title: z.string().min(2), notes: z.string().optional(), duration: z.number().int().positive().optional() })), admin.createWorkout);
+router.get('/equipment', admin.listEquipment);
+router.post('/equipment', validate(z.object({ name: z.string().min(2), category: z.string().min(2), status: z.enum(['AVAILABLE', 'MAINTENANCE', 'RETIRED']).default('AVAILABLE') })), admin.createEquipment);
+router.patch('/equipment/:id', validate(z.object({ status: z.enum(['AVAILABLE', 'MAINTENANCE', 'RETIRED']).optional(), category: z.string().optional(), name: z.string().optional() })), admin.updateEquipment);
+router.get('/payments', admin.listPayments);
+export default router;

@@ -1,0 +1,1 @@
+export default function Topbar({ title, subtitle }) { return <header className="topbar"><div><span className="eyebrow">GYMFIT · REVIEW 3</span><h1>{title}</h1><p>{subtitle}</p></div><div className="online"><span className="dot"></span> API online</div></header>; }

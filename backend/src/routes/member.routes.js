@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import * as member from '../controllers/member.controller.js';
+const router = Router();
+router.use(requireAuth, requireRole('MEMBER'));
+router.get('/memberships', member.myMembership);
+router.get('/attendance', member.myAttendance);
+router.get('/workouts', member.myWorkouts);
+router.get('/payments', member.myPayments);
+export default router;

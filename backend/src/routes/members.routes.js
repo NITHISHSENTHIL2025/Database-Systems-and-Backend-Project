@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { createMember, listMembers } from '../controllers/members.controller.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+const router = Router();
+const memberSchema = z.object({ name: z.string().min(2), email: z.string().email(), password: z.string().min(8), phone: z.string().optional(), goal: z.string().optional(), plan: z.string().optional(), amount: z.number().nonnegative().optional() });
+router.get('/', requireAuth, requireRole('ADMIN'), listMembers);
+router.post('/', requireAuth, requireRole('ADMIN'), validate(memberSchema), createMember);
+export default router;
