@@ -1,4 +1,12 @@
+export function notFound(req, res) {
+  res.status(404).json({ message: 'Route not found.' });
+}
+
 export function errorHandler(err, req, res, next) {
-  console.error(err);
-  res.status(err.status ?? 500).json({ message: err.message ?? 'Internal server error.' });
+  const status = Number(err.status) || 500;
+  if (status >= 500) console.error(err);
+  res.status(status).json({
+    message: status >= 500 ? 'Something went wrong on the server.' : err.message,
+    ...(status < 500 && err.details ? { details: err.details } : {})
+  });
 }

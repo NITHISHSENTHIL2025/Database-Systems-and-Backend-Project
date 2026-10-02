@@ -9,113 +9,372 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  TRAINER
   MEMBER
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum MembershipKind {
+  PERSONAL
+  AI
 }
 
 enum MembershipStatus {
   ACTIVE
+  SCHEDULED
   EXPIRED
   FROZEN
-}
-
-enum AttendanceStatus {
-  PRESENT
-  ABSENT
+  CANCELLED
 }
 
 enum PaymentStatus {
-  PAID
+  CREATED
   PENDING
+  PAID
   FAILED
+  CANCELLED
 }
 
-enum EquipmentStatus {
-  AVAILABLE
-  MAINTENANCE
-  RETIRED
+enum PlanSource {
+  TRAINER
+  AI
+}
+
+enum DayType {
+  TRAINING
+  REST
+}
+
+enum ExerciseStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+}
+
+enum MealStatus {
+  PENDING
+  DONE
+  PARTIAL
+  SKIPPED
+}
+
+enum MetricSource {
+  MEMBER
+  TRAINER
+}
+
+enum BodyType {
+  SLIM
+  AVERAGE
+  ATHLETIC
+  HEAVY
+}
+
+enum RecoveryPurpose {
+  GYM_KEY
+  PASSWORD
 }
 
 model User {
-  id           Int       @id @default(autoincrement())
-  name         String
-  email        String    @unique
-  passwordHash String
-  role         UserRole  @default(MEMBER)
-  member       Member?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @default(now()) @updatedAt
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  loginKey      String?        @unique
+  phone         String?
+  passwordHash  String
+  role          UserRole       @default(MEMBER)
+  status        UserStatus     @default(ACTIVE)
+  member        Member?
+  trainer       Trainer?
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  recordedMetrics BodyMetric[] @relation("MetricRecorder")
+  recoveryCodes RecoveryCode[]
+  trustedDevices TrustedDevice[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Member {
-  id           Int           @id @default(autoincrement())
-  userId       Int           @unique
-  phone        String?
-  goal         String?
-  joinedAt     DateTime      @default(now())
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 Int                 @id @default(autoincrement())
+  userId             Int                 @unique
+  goal               String?
+  age                Int?
+  heightCm           Float?
+  weightKg           Float?
+  bodyType           BodyType?
+  joinedAt           DateTime            @default(now())
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberships        Membership[]
+  attendance         Attendance[]
+  payments           Payment[]
+  trainerAssignments TrainerAssignment[]
+  dailyPlans         DailyPlan[]
+  bodyMetrics        BodyMetric[]
+  aiProfile          AIProfile?
+  faceProfile        FaceProfile?
+}
+
+model Trainer {
+  id                 Int                 @id @default(autoincrement())
+  userId             Int?                @unique
+  name               String
+  email              String?             @unique
+  phone              String?
+  specialty          String
+  bio                String?
+  capacity           Int                 @default(20)
+  active             Boolean             @default(true)
+  user               User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  trainerAssignments TrainerAssignment[]
+  dailyPlans         DailyPlan[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model MembershipPlan {
+  id           Int             @id @default(autoincrement())
+  name         String
+  slug         String          @unique
+  kind         MembershipKind  @default(PERSONAL)
+  description  String
+  price        Decimal         @db.Decimal(10, 2)
+  durationDays Int
+  features     Json?
+  active       Boolean         @default(true)
   memberships  Membership[]
-  attendance   Attendance[]
-  workouts     Workout[]
   payments     Payment[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([active, kind])
 }
 
 model Membership {
   id         Int               @id @default(autoincrement())
   memberId   Int
-  plan       String
+  planId     Int
+  paymentId  Int               @unique
   startDate  DateTime
   endDate    DateTime
   status     MembershipStatus  @default(ACTIVE)
-  amount     Decimal?          @db.Decimal(10, 2)
+  amountPaid Decimal           @db.Decimal(10, 2)
   member     Member            @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  payments   Payment[]
+  plan       MembershipPlan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payment    Payment           @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  createdAt  DateTime          @default(now())
+
+  @@index([memberId, status])
 }
 
-model Trainer {
-  id          Int       @id @default(autoincrement())
-  name        String
-  speciality  String?
-  phone       String?
-  sessions    Workout[]
+model TrainerAssignment {
+  id        Int       @id @default(autoincrement())
+  memberId  Int
+  trainerId Int
+  active    Boolean   @default(true)
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  trainer   Trainer   @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, active])
+  @@index([trainerId, active])
 }
 
 model Attendance {
-  id        Int              @id @default(autoincrement())
-  memberId  Int
-  date      DateTime         @default(now())
-  status    AttendanceStatus @default(PRESENT)
-  member    Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  @@unique([memberId, date])
-}
-
-model Workout {
   id         Int       @id @default(autoincrement())
   memberId   Int
-  trainerId  Int?
-  title      String?
-  notes      String?
-  duration   Int?
-  date       DateTime  @default(now())
+  dayKey     String
+  checkInAt  DateTime  @default(now())
+  checkOutAt DateTime?
+  source     String    @default("FACE")
   member     Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  trainer    Trainer?  @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+
+  @@unique([memberId, dayKey])
+  @@index([dayKey])
+}
+
+model AIProfile {
+  id               Int      @id @default(autoincrement())
+  memberId         Int      @unique
+  gender           String
+  targetWeightKg   Float?
+  experience       String
+  trainingDays     Int      @default(4)
+  sessionMinutes   Int      @default(60)
+  dietPreference   String
+  allergies        String?
+  dislikedFoods    String?
+  activityLevel    String   @default("MODERATE")
+  equipmentAccess  String   @default("GYM")
+  sleepHours       Float?
+  member           Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model DailyPlan {
+  id             Int          @id @default(autoincrement())
+  memberId       Int
+  trainerId      Int?
+  dateKey        String
+  source         PlanSource
+  dayType        DayType      @default(TRAINING)
+  title          String
+  notes          String?
+  generatedReason String?
+  calorieTarget  Int?
+  proteinTarget  Int?
+  carbsTarget    Int?
+  fatTarget      Int?
+  waterMlTarget  Int?
+  stepsTarget    Int?
+  member         Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  trainer        Trainer?     @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  exercises      DailyExercise[]
+  meals          DailyMeal[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([memberId, dateKey])
+  @@index([trainerId, dateKey])
+}
+
+model DailyExercise {
+  id             Int            @id @default(autoincrement())
+  dailyPlanId    Int
+  exerciseName   String
+  muscleGroup    String?
+  sets           Int
+  reps           String
+  targetWeightKg Float?
+  restSeconds    Int?
+  notes          String?
+  position       Int            @default(0)
+  status         ExerciseStatus @default(PENDING)
+  completedAt    DateTime?
+  dailyPlan      DailyPlan      @relation(fields: [dailyPlanId], references: [id], onDelete: Cascade)
+
+  @@index([dailyPlanId, position])
+}
+
+model DailyMeal {
+  id          Int        @id @default(autoincrement())
+  dailyPlanId Int
+  name        String
+  timeLabel   String?
+  items       Json
+  calories    Int?
+  protein     Int?
+  carbs       Int?
+  fat         Int?
+  position    Int        @default(0)
+  status      MealStatus @default(PENDING)
+  completedAt DateTime?
+  dailyPlan   DailyPlan  @relation(fields: [dailyPlanId], references: [id], onDelete: Cascade)
+
+  @@index([dailyPlanId, position])
+}
+
+model BodyMetric {
+  id               Int          @id @default(autoincrement())
+  memberId         Int
+  recordedByUserId Int?
+  source           MetricSource @default(MEMBER)
+  weightKg         Float
+  recordedAt       DateTime     @default(now())
+  member           Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  recordedBy       User?        @relation("MetricRecorder", fields: [recordedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([memberId, recordedAt])
 }
 
 model Payment {
-  id           Int            @id @default(autoincrement())
-  memberId     Int
-  membershipId Int?
-  amount       Decimal        @db.Decimal(10, 2)
-  status       PaymentStatus  @default(PAID)
-  reference    String         @unique
-  paidAt       DateTime?
-  member       Member         @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  membership   Membership?    @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+  id               Int             @id @default(autoincrement())
+  memberId         Int
+  planId           Int
+  provider         String          @default("CASHFREE")
+  orderId          String          @unique
+  cfPaymentId      String?
+  paymentSessionId String?
+  amount           Decimal         @db.Decimal(10, 2)
+  currency         String          @default("INR")
+  status           PaymentStatus   @default(CREATED)
+  paidAt           DateTime?
+  member           Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  plan             MembershipPlan  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  membership       Membership?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([memberId, status])
 }
 
-model Equipment {
-  id        Int              @id @default(autoincrement())
-  name      String
-  category  String
-  status    EquipmentStatus  @default(AVAILABLE)
-  lastCheck DateTime?
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  type      String    @default("INFO")
+  title     String
+  body      String
+  readAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id          Int       @id @default(autoincrement())
+  actorUserId Int?
+  action      String
+  entity      String
+  entityId    String?
+  metadata    Json?
+  actor       User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  @@index([createdAt])
+}
+
+model FaceProfile {
+  id          Int      @id @default(autoincrement())
+  memberId    Int      @unique
+  descriptors Json
+  samples     Int      @default(3)
+  consentAt   DateTime @default(now())
+  enrolledAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+model RecoveryCode {
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  purpose   RecoveryPurpose
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int             @default(0)
+  usedAt    DateTime?
+  createdAt DateTime        @default(now())
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+}
+
+
+
+model TrustedDevice {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  tokenHash  String   @unique
+  lastUsedAt DateTime @default(now())
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }

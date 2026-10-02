@@ -1,19 +1,23 @@
 {
-  "name": "gym-fitness-backend",
-  "version": "4.0.0",
+  "name": "gymfit-backend",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/server.js",
+    "dev": "node src/server.js",
     "start": "node src/server.js",
+    "check": "node --check src/server.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
-    "db:setup": "npm run db:generate && npm run db:push && npm run db:seed"
+    "db:setup": "npm run db:generate && npm run db:push && npm run db:seed",
+    "db:clean": "node prisma/clean.js",
+    "db:reset-data": "npm run db:clean && npm run db:seed"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
     "bcryptjs": "3.0.2",
+    "cookie-parser": "1.4.7",
     "cors": "2.8.5",
     "dotenv": "17.2.1",
     "express": "5.1.0",
