@@ -77,11 +77,19 @@ async function sendBrevoEmail({ toEmail, toName, subject, htmlContent }) {
   );
 
   if (!response.ok) {
-    throw new AppError(
-      502,
-      'We could not send the email. Please try again.'
-    );
-  }
+  const errorText = await response.text();
+
+  console.error(
+    'BREVO ERROR:',
+    response.status,
+    errorText
+  );
+
+  throw new AppError(
+    502,
+    'We could not send the email. Please try again.'
+  );
+}
 }
 
 async function sendRegistrationEmail(pending, otp) {
