@@ -80,23 +80,39 @@ enum RecoveryPurpose {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  name          String
-  email         String         @unique
-  loginKey      String?        @unique
-  phone         String?
-  passwordHash  String
-  role          UserRole       @default(MEMBER)
-  status        UserStatus     @default(ACTIVE)
-  member        Member?
-  trainer       Trainer?
-  auditLogs     AuditLog[]
-  notifications Notification[]
-  recordedMetrics BodyMetric[] @relation("MetricRecorder")
-  recoveryCodes RecoveryCode[]
-  trustedDevices TrustedDevice[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id              Int             @id @default(autoincrement())
+  name            String
+  email           String          @unique
+  loginKey        String?         @unique
+  phone           String?
+  passwordHash    String
+  role            UserRole        @default(MEMBER)
+  status          UserStatus      @default(ACTIVE)
+  member          Member?
+  trainer         Trainer?
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  recordedMetrics BodyMetric[]    @relation("MetricRecorder")
+  recoveryCodes   RecoveryCode[]
+  trustedDevices  TrustedDevice[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model PendingRegistration {
+  id         Int      @id @default(autoincrement())
+  name       String
+  email      String   @unique
+  phone      String?
+  goal       String
+  codeHash   String
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  lastSentAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([expiresAt])
 }
 
 model Member {
@@ -199,46 +215,46 @@ model Attendance {
 }
 
 model AIProfile {
-  id               Int      @id @default(autoincrement())
-  memberId         Int      @unique
-  gender           String
-  targetWeightKg   Float?
-  experience       String
-  trainingDays     Int      @default(4)
-  sessionMinutes   Int      @default(60)
-  dietPreference   String
-  allergies        String?
-  dislikedFoods    String?
-  activityLevel    String   @default("MODERATE")
-  equipmentAccess  String   @default("GYM")
-  sleepHours       Float?
-  member           Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              Int      @id @default(autoincrement())
+  memberId        Int      @unique
+  gender          String
+  targetWeightKg  Float?
+  experience      String
+  trainingDays    Int      @default(4)
+  sessionMinutes  Int      @default(60)
+  dietPreference  String
+  allergies       String?
+  dislikedFoods   String?
+  activityLevel   String   @default("MODERATE")
+  equipmentAccess String   @default("GYM")
+  sleepHours      Float?
+  member          Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model DailyPlan {
-  id             Int          @id @default(autoincrement())
-  memberId       Int
-  trainerId      Int?
-  dateKey        String
-  source         PlanSource
-  dayType        DayType      @default(TRAINING)
-  title          String
-  notes          String?
+  id              Int             @id @default(autoincrement())
+  memberId        Int
+  trainerId       Int?
+  dateKey         String
+  source          PlanSource
+  dayType         DayType         @default(TRAINING)
+  title           String
+  notes           String?
   generatedReason String?
-  calorieTarget  Int?
-  proteinTarget  Int?
-  carbsTarget    Int?
-  fatTarget      Int?
-  waterMlTarget  Int?
-  stepsTarget    Int?
-  member         Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  trainer        Trainer?     @relation(fields: [trainerId], references: [id], onDelete: SetNull)
-  exercises      DailyExercise[]
-  meals          DailyMeal[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  calorieTarget   Int?
+  proteinTarget   Int?
+  carbsTarget     Int?
+  fatTarget       Int?
+  waterMlTarget   Int?
+  stepsTarget     Int?
+  member          Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  trainer         Trainer?        @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  exercises       DailyExercise[]
+  meals           DailyMeal[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@unique([memberId, dateKey])
   @@index([trainerId, dateKey])
@@ -308,8 +324,8 @@ model Payment {
   member           Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
   plan             MembershipPlan  @relation(fields: [planId], references: [id], onDelete: Restrict)
   membership       Membership?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([memberId, status])
 }
@@ -364,8 +380,6 @@ model RecoveryCode {
 
   @@index([userId, purpose, createdAt])
 }
-
-
 
 model TrustedDevice {
   id         Int      @id @default(autoincrement())

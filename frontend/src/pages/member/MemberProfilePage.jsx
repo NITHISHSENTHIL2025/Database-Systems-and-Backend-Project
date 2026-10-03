@@ -19,6 +19,18 @@ import {
   Spinner
 } from '../../components/UI.jsx';
 
+const GOAL_OPTIONS = [
+  ['MUSCLE_GAIN', 'Muscle Gain'],
+  ['FAT_LOSS', 'Fat Loss'],
+  ['STRENGTH', 'Strength'],
+  ['FITNESS', 'General Fitness']
+];
+
+const SLEEP_OPTIONS = Array.from(
+  { length: 19 },
+  (_, index) => 3 + index * 0.5
+);
+
 const blankForm = {
   name: '',
   phone: '',
@@ -31,31 +43,46 @@ const blankForm = {
 
 const blankAI = {
   gender: 'MALE',
-
   targetWeightKg: '',
-
-  experience:
-    'BEGINNER',
-
+  experience: 'BEGINNER',
   trainingDays: 4,
-
   sessionMinutes: 60,
-
-  dietPreference:
-    'VEGETARIAN',
-
+  dietPreference: 'VEGETARIAN',
   allergies: '',
-
   dislikedFoods: '',
-
-  activityLevel:
-    'MODERATE',
-
-  equipmentAccess:
-    'GYM',
-
+  activityLevel: 'MODERATE',
+  equipmentAccess: 'GYM',
   sleepHours: 7
 };
+
+function normalizeStoredGoal(goal) {
+  const value = String(goal || '')
+    .trim()
+    .toUpperCase();
+
+  if (!value) return '';
+
+  if (
+    value.includes('MUSCLE') ||
+    value.includes('GAIN')
+  ) {
+    return 'MUSCLE_GAIN';
+  }
+
+  if (
+    value.includes('FAT') ||
+    value.includes('LOSS') ||
+    value.includes('LOSE')
+  ) {
+    return 'FAT_LOSS';
+  }
+
+  if (value.includes('STRENGTH')) {
+    return 'STRENGTH';
+  }
+
+  return 'FITNESS';
+}
 
 export default function MemberProfilePage() {
   const {
@@ -63,44 +90,13 @@ export default function MemberProfilePage() {
     error,
     loading,
     reload
-  } =
-    useApiData(
-      '/member/profile'
-    );
+  } = useApiData('/member/profile');
 
-  const [
-    form,
-    setForm
-  ] =
-    useState(
-      blankForm
-    );
-
-  const [
-    ai,
-    setAi
-  ] =
-    useState(
-      blankAI
-    );
-
-  const [
-    message,
-    setMessage
-  ] =
-    useState('');
-
-  const [
-    busy,
-    setBusy
-  ] =
-    useState('');
-
-  const [
-    copied,
-    setCopied
-  ] =
-    useState(false);
+  const [form, setForm] = useState(blankForm);
+  const [ai, setAi] = useState(blankAI);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!data) {
@@ -108,61 +104,30 @@ export default function MemberProfilePage() {
     }
 
     setForm({
-      name:
-        data.name ||
-        '',
-
-      phone:
-        data.phone ||
-        '',
-
-      goal:
-        data.goal ||
-        '',
-
-      age:
-        data.age ??
-        '',
-
-      heightCm:
-        data.heightCm ??
-        '',
-
-      weightKg:
-        data.weightKg ??
-        '',
-
-      bodyType:
-        data.bodyType ||
-        ''
+      name: data.name || '',
+      phone: data.phone || '',
+      goal: normalizeStoredGoal(data.goal),
+      age: data.age ?? '',
+      heightCm: data.heightCm ?? '',
+      weightKg: data.weightKg ?? '',
+      bodyType: data.bodyType || ''
     });
 
     if (data.aiProfile) {
       setAi({
         ...blankAI,
-
         ...data.aiProfile,
-
         targetWeightKg:
-          data.aiProfile
-            .targetWeightKg ??
-          '',
-
+          data.aiProfile.targetWeightKg ?? '',
         allergies:
-          data.aiProfile
-            .allergies ??
-          '',
-
+          data.aiProfile.allergies ?? '',
         dislikedFoods:
-          data.aiProfile
-            .dislikedFoods ??
-          '',
-
+          data.aiProfile.dislikedFoods ?? '',
         sleepHours:
-          data.aiProfile
-            .sleepHours ??
-          ''
+          data.aiProfile.sleepHours ?? ''
       });
+    } else {
+      setAi(blankAI);
     }
   }, [data]);
 
@@ -183,65 +148,40 @@ export default function MemberProfilePage() {
   async function saveProfile(e) {
     e.preventDefault();
 
-    setBusy(
-      'profile'
-    );
-
+    setBusy('profile');
     setMessage('');
 
     try {
       await api(
         '/member/profile',
-
         json(
           'PATCH',
           {
-            name:
-              form.name,
-
-            phone:
-              form.phone,
-
-            goal:
-              form.goal,
-
+            name: form.name,
+            phone: form.phone,
+            goal: form.goal,
             age:
               form.age === ''
                 ? null
-                : Number(
-                    form.age
-                  ),
-
+                : Number(form.age),
             heightCm:
               form.heightCm === ''
                 ? null
-                : Number(
-                    form.heightCm
-                  ),
-
+                : Number(form.heightCm),
             weightKg:
               form.weightKg === ''
                 ? null
-                : Number(
-                    form.weightKg
-                  ),
-
+                : Number(form.weightKg),
             bodyType:
-              form.bodyType ||
-              null
+              form.bodyType || null
           }
         )
       );
 
-      setMessage(
-        'Profile saved.'
-      );
-
+      setMessage('Profile saved.');
       await reload();
     } catch (err) {
-      setMessage(
-        err.message
-      );
+      setMessage(err.message);
     } finally {
       setBusy('');
     }
@@ -256,58 +196,33 @@ export default function MemberProfilePage() {
     try {
       await api(
         '/member/ai-profile',
-
         json(
           'PUT',
           {
-            gender:
-              ai.gender,
-
+            gender: ai.gender,
             targetWeightKg:
-              ai.targetWeightKg ===
-              ''
+              ai.targetWeightKg === ''
                 ? null
-                : Number(
-                    ai.targetWeightKg
-                  ),
-
-            experience:
-              ai.experience,
-
+                : Number(ai.targetWeightKg),
+            experience: ai.experience,
             trainingDays:
-              Number(
-                ai.trainingDays
-              ),
-
+              Number(ai.trainingDays),
             sessionMinutes:
-              Number(
-                ai.sessionMinutes
-              ),
-
+              Number(ai.sessionMinutes),
             dietPreference:
               ai.dietPreference,
-
             allergies:
-              ai.allergies ||
-              null,
-
+              ai.allergies || null,
             dislikedFoods:
-              ai.dislikedFoods ||
-              null,
-
+              ai.dislikedFoods || null,
             activityLevel:
               ai.activityLevel,
-
             equipmentAccess:
               ai.equipmentAccess,
-
             sleepHours:
-              ai.sleepHours ===
-              ''
+              ai.sleepHours === ''
                 ? null
-                : Number(
-                    ai.sleepHours
-                  )
+                : Number(ai.sleepHours)
           }
         )
       );
@@ -318,39 +233,30 @@ export default function MemberProfilePage() {
 
       await reload();
     } catch (err) {
-      setMessage(
-        err.message
-      );
+      setMessage(err.message);
     } finally {
       setBusy('');
     }
   }
 
   async function copyKey() {
-    await navigator
-      .clipboard
-      ?.writeText(
-        data.loginKey ||
-        ''
-      );
+    await navigator.clipboard?.writeText(
+      data.loginKey || ''
+    );
 
     setCopied(true);
 
     setTimeout(
-      () =>
-        setCopied(false),
+      () => setCopied(false),
       1300
     );
   }
 
   return (
     <>
-
       <PageHeader
         eyebrow="PROFILE"
-
         title="Your GymFit profile."
-
         copy="Keep your fitness basics accurate for coaching and progress tracking."
       />
 
@@ -359,9 +265,7 @@ export default function MemberProfilePage() {
           type={
             message
               .toLowerCase()
-              .includes(
-                'saved'
-              )
+              .includes('saved')
               ? 'success'
               : 'error'
           }
@@ -371,69 +275,51 @@ export default function MemberProfilePage() {
       )}
 
       <section className="gym-key-panel">
-
         <div>
           <span className="eyebrow">
             YOUR GYM KEY
           </span>
 
           <strong>
-            {data.loginKey ||
-              '------'}
+            {data.loginKey || '------'}
           </strong>
 
           <p>
-            Use this six-digit Gym Key
-            to sign in from any device.
-            Keep it private.
+            Use this six-digit Gym Key to sign in
+            from any device. Keep it private.
           </p>
         </div>
 
         <button
+          type="button"
           className="button button-dark"
-
-          onClick={
-            copyKey
-          }
+          onClick={copyKey}
         >
           {copied
             ? 'Copied'
             : 'Copy key'}
         </button>
-
       </section>
 
       <div className="portal-grid two-thirds">
-
         <Panel title="Basic profile">
-
           <form
             className="portal-form"
-            onSubmit={
-              saveProfile
-            }
+            onSubmit={saveProfile}
           >
-
             <div className="form-grid two">
-
               <label>
                 Name
 
                 <input
-                  value={
-                    form.name
-                  }
-
+                  autoComplete="name"
+                  value={form.name}
                   onChange={e =>
                     setForm({
                       ...form,
-
-                      name:
-                        e.target
-                          .value
+                      name: e.target.value
                     })
                   }
-
                   required
                 />
               </label>
@@ -442,10 +328,7 @@ export default function MemberProfilePage() {
                 Email
 
                 <input
-                  value={
-                    data.email
-                  }
-
+                  value={data.email}
                   disabled
                 />
               </label>
@@ -454,42 +337,46 @@ export default function MemberProfilePage() {
                 Phone
 
                 <input
-                  value={
-                    form.phone
-                  }
-
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={form.phone}
                   onChange={e =>
                     setForm({
                       ...form,
-
-                      phone:
-                        e.target
-                          .value
+                      phone: e.target.value
                     })
                   }
                 />
               </label>
 
               <label>
-                Goal
+                Fitness goal
 
-                <input
-                  placeholder="Muscle gain, fat loss, strength…"
-
-                  value={
-                    form.goal
-                  }
-
+                <select
+                  value={form.goal}
                   onChange={e =>
                     setForm({
                       ...form,
-
-                      goal:
-                        e.target
-                          .value
+                      goal: e.target.value
                     })
                   }
-                />
+                  required
+                >
+                  <option value="">
+                    Select your goal
+                  </option>
+
+                  {GOAL_OPTIONS.map(
+                    ([value, label]) => (
+                      <option
+                        key={value}
+                        value={value}
+                      >
+                        {label}
+                      </option>
+                    )
+                  )}
+                </select>
               </label>
 
               <label>
@@ -499,18 +386,11 @@ export default function MemberProfilePage() {
                   type="number"
                   min="18"
                   max="80"
-
-                  value={
-                    form.age
-                  }
-
+                  value={form.age}
                   onChange={e =>
                     setForm({
                       ...form,
-
-                      age:
-                        e.target
-                          .value
+                      age: e.target.value
                     })
                   }
                 />
@@ -524,18 +404,11 @@ export default function MemberProfilePage() {
                   min="120"
                   max="230"
                   step="0.1"
-
-                  value={
-                    form.heightCm
-                  }
-
+                  value={form.heightCm}
                   onChange={e =>
                     setForm({
                       ...form,
-
-                      heightCm:
-                        e.target
-                          .value
+                      heightCm: e.target.value
                     })
                   }
                 />
@@ -549,18 +422,11 @@ export default function MemberProfilePage() {
                   min="30"
                   max="300"
                   step="0.1"
-
-                  value={
-                    form.weightKg
-                  }
-
+                  value={form.weightKg}
                   onChange={e =>
                     setForm({
                       ...form,
-
-                      weightKg:
-                        e.target
-                          .value
+                      weightKg: e.target.value
                     })
                   }
                 />
@@ -570,22 +436,16 @@ export default function MemberProfilePage() {
                 Body type
 
                 <select
-                  value={
-                    form.bodyType
-                  }
-
+                  value={form.bodyType}
                   onChange={e =>
                     setForm({
                       ...form,
-
-                      bodyType:
-                        e.target
-                          .value
+                      bodyType: e.target.value
                     })
                   }
                 >
                   <option value="">
-                    Select
+                    Select body type
                   </option>
 
                   <option value="SLIM">
@@ -603,43 +463,30 @@ export default function MemberProfilePage() {
                   <option value="HEAVY">
                     Heavy build
                   </option>
-
                 </select>
               </label>
-
             </div>
 
             <button
               className="button button-primary"
-
-              disabled={
-                busy ===
-                'profile'
-              }
+              disabled={busy === 'profile'}
             >
-              {busy ===
-              'profile'
+              {busy === 'profile'
                 ? 'Saving…'
                 : 'Save profile'}
             </button>
-
           </form>
-
         </Panel>
 
         <Panel title="Current coaching">
-
           <div className="profile-summary">
-
             <div>
               <span>
                 Membership
               </span>
 
               <strong>
-                {data.membership
-                  ?.name ||
-                  'None'}
+                {data.membership?.name || 'None'}
               </strong>
             </div>
 
@@ -649,9 +496,7 @@ export default function MemberProfilePage() {
               </span>
 
               <strong>
-                {data.membership
-                  ?.kind ||
-                  '—'}
+                {data.membership?.kind || '—'}
               </strong>
             </div>
 
@@ -661,9 +506,7 @@ export default function MemberProfilePage() {
               </span>
 
               <strong>
-                {data.trainer
-                  ?.name ||
-                  '—'}
+                {data.trainer?.name || '—'}
               </strong>
             </div>
 
@@ -673,75 +516,54 @@ export default function MemberProfilePage() {
               </span>
 
               <strong>
-                {data
-                  .fitnessProfileComplete
+                {data.fitnessProfileComplete
                   ? 'Complete'
                   : 'Needs setup'}
               </strong>
             </div>
-
           </div>
-
         </Panel>
-
       </div>
 
-      {data.membership
-        ?.kind ===
-        'AI' && (
+      {data.membership?.kind === 'AI' && (
         <Panel
           title="AI Coach setup"
-
-          copy="Only AI-specific preferences live here. Age, height, weight and body type come from your basic profile above."
+          copy="These controlled preferences help GymFit generate a consistent plan. Age, height, weight, body type and fitness goal come from your basic profile above."
         >
-
-          {!data
-            .fitnessProfileComplete && (
+          {!data.fitnessProfileComplete && (
             <Notice type="info">
-              Complete age,
-              height, weight and
+              Complete age, height, weight and
               body type first.
             </Notice>
           )}
 
           <form
             className="portal-form"
-
-            onSubmit={
-              saveAI
-            }
+            onSubmit={saveAI}
           >
-
             <div className="form-grid three">
-
               <label>
                 Gender
 
                 <select
-                  value={
-                    ai.gender
-                  }
-
+                  value={ai.gender}
                   onChange={e =>
                     setAi({
                       ...ai,
-
-                      gender:
-                        e.target
-                          .value
+                      gender: e.target.value
                     })
                   }
                 >
-                  <option>
-                    MALE
+                  <option value="MALE">
+                    Male
                   </option>
 
-                  <option>
-                    FEMALE
+                  <option value="FEMALE">
+                    Female
                   </option>
 
-                  <option>
-                    OTHER
+                  <option value="OTHER">
+                    Other / not specified
                   </option>
                 </select>
               </label>
@@ -750,115 +572,85 @@ export default function MemberProfilePage() {
                 Experience
 
                 <select
-                  value={
-                    ai.experience
-                  }
-
+                  value={ai.experience}
                   onChange={e =>
                     setAi({
                       ...ai,
-
-                      experience:
-                        e.target
-                          .value
+                      experience: e.target.value
                     })
                   }
                 >
-                  <option>
-                    BEGINNER
+                  <option value="BEGINNER">
+                    Beginner
                   </option>
 
-                  <option>
-                    INTERMEDIATE
+                  <option value="INTERMEDIATE">
+                    Intermediate
                   </option>
 
-                  <option>
-                    ADVANCED
+                  <option value="ADVANCED">
+                    Advanced
                   </option>
                 </select>
               </label>
 
               <label>
-                Training days
+                Training days / week
 
                 <select
-                  value={
-                    ai.trainingDays
-                  }
-
+                  value={ai.trainingDays}
                   onChange={e =>
                     setAi({
                       ...ai,
-
-                      trainingDays:
-                        e.target
-                          .value
+                      trainingDays: e.target.value
                     })
                   }
                 >
-                  {[3,4,5,6]
-                    .map(
-                      day => (
-                        <option
-                          key={
-                            day
-                          }
-                        >
-                          {day}
-                        </option>
-                      )
-                    )}
+                  {[3, 4, 5, 6].map(day => (
+                    <option
+                      key={day}
+                      value={day}
+                    >
+                      {day} days
+                    </option>
+                  ))}
                 </select>
               </label>
 
               <label>
-                Session minutes
+                Session duration
 
                 <select
-                  value={
-                    ai.sessionMinutes
-                  }
-
+                  value={ai.sessionMinutes}
                   onChange={e =>
                     setAi({
                       ...ai,
-
-                      sessionMinutes:
-                        e.target
-                          .value
+                      sessionMinutes: e.target.value
                     })
                   }
                 >
-                  {[30,45,60,75,90]
-                    .map(
-                      minutes => (
-                        <option
-                          key={
-                            minutes
-                          }
-                        >
-                          {minutes}
-                        </option>
-                      )
-                    )}
+                  {[30, 45, 60, 75, 90].map(
+                    minutes => (
+                      <option
+                        key={minutes}
+                        value={minutes}
+                      >
+                        {minutes} minutes
+                      </option>
+                    )
+                  )}
                 </select>
               </label>
 
               <label>
-                Diet
+                Diet preference
 
                 <select
-                  value={
-                    ai.dietPreference
-                  }
-
+                  value={ai.dietPreference}
                   onChange={e =>
                     setAi({
                       ...ai,
-
-                      dietPreference:
-                        e.target
-                          .value
+                      dietPreference: e.target.value
                     })
                   }
                 >
@@ -877,144 +669,157 @@ export default function MemberProfilePage() {
               </label>
 
               <label>
-                Activity
+                Activity level
 
                 <select
-                  value={
-                    ai.activityLevel
-                  }
-
+                  value={ai.activityLevel}
                   onChange={e =>
                     setAi({
                       ...ai,
-
-                      activityLevel:
-                        e.target
-                          .value
+                      activityLevel: e.target.value
                     })
                   }
                 >
-                  <option>
-                    LOW
+                  <option value="LOW">
+                    Low
                   </option>
 
-                  <option>
-                    LIGHT
+                  <option value="LIGHT">
+                    Light
                   </option>
 
-                  <option>
-                    MODERATE
+                  <option value="MODERATE">
+                    Moderate
                   </option>
 
-                  <option>
-                    HIGH
+                  <option value="HIGH">
+                    High
                   </option>
                 </select>
               </label>
 
               <label>
-                Equipment
+                Equipment access
 
                 <select
-                  value={
-                    ai.equipmentAccess
-                  }
-
+                  value={ai.equipmentAccess}
                   onChange={e =>
                     setAi({
                       ...ai,
-
-                      equipmentAccess:
-                        e.target
-                          .value
+                      equipmentAccess: e.target.value
                     })
                   }
                 >
-                  <option>
-                    GYM
+                  <option value="GYM">
+                    Full gym
                   </option>
 
-                  <option>
-                    HOME
+                  <option value="HOME">
+                    Home equipment
                   </option>
 
-                  <option>
-                    LIMITED
+                  <option value="LIMITED">
+                    Limited equipment
                   </option>
                 </select>
               </label>
 
               <label>
-                Target weight
+                Sleep per night
+
+                <select
+                  value={ai.sleepHours}
+                  onChange={e =>
+                    setAi({
+                      ...ai,
+                      sleepHours: e.target.value
+                    })
+                  }
+                >
+                  <option value="">
+                    Not set
+                  </option>
+
+                  {SLEEP_OPTIONS.map(hours => (
+                    <option
+                      key={hours}
+                      value={hours}
+                    >
+                      {hours} hours
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Target weight (kg)
 
                 <input
                   type="number"
+                  min="30"
+                  max="300"
                   step="0.1"
-
-                  value={
-                    ai.targetWeightKg
-                  }
-
+                  value={ai.targetWeightKg}
                   onChange={e =>
                     setAi({
                       ...ai,
-
-                      targetWeightKg:
-                        e.target
-                          .value
+                      targetWeightKg: e.target.value
                     })
                   }
                 />
               </label>
 
               <label>
-                Sleep hours
+                Allergies
 
                 <input
-                  type="number"
-                  step="0.5"
-                  min="3"
-                  max="12"
-
-                  value={
-                    ai.sleepHours
-                  }
-
+                  placeholder="e.g. peanuts, milk"
+                  value={ai.allergies}
                   onChange={e =>
                     setAi({
                       ...ai,
-
-                      sleepHours:
-                        e.target
-                          .value
+                      allergies: e.target.value
                     })
                   }
                 />
               </label>
 
+              <label>
+                Disliked foods
+
+                <input
+                  placeholder="e.g. tofu, eggs"
+                  value={ai.dislikedFoods}
+                  onChange={e =>
+                    setAi({
+                      ...ai,
+                      dislikedFoods: e.target.value
+                    })
+                  }
+                />
+              </label>
             </div>
+
+            <p className="form-help">
+              Allergies and disliked foods stay free-text because
+              those choices vary from person to person. Numeric body
+              measurements also remain numeric inputs instead of dropdowns.
+            </p>
 
             <button
               className="button button-primary"
-
               disabled={
-                busy ===
-                  'ai' ||
-                !data
-                  .fitnessProfileComplete
+                busy === 'ai' ||
+                !data.fitnessProfileComplete
               }
             >
-              {busy ===
-              'ai'
+              {busy === 'ai'
                 ? 'Building…'
                 : 'Save AI setup'}
             </button>
-
           </form>
-
         </Panel>
       )}
-
     </>
   );
 }
