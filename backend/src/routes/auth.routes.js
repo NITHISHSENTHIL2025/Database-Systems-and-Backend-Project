@@ -9,7 +9,8 @@ import { asyncRoute } from '../utils/http.js';
 import {
   loginByKey,
   publicUser,
-  registerMember,
+  requestRegistration,
+  verifyRegistration,
   requestRecovery,
   verifyRecovery
 } from '../services/auth.service.js';
@@ -27,10 +28,20 @@ const authLimiter = rateLimit({
   limit: 10,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-
   message: {
     message:
       'Too many sign-in attempts. Try again later.'
+  }
+});
+
+const registrationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 12,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: {
+    message:
+      'Too many registration attempts. Try again later.'
   }
 });
 
@@ -39,21 +50,27 @@ const recoveryLimiter = rateLimit({
   limit: 8,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-
   message: {
     message:
       'Too many recovery attempts. Try again later.'
   }
 });
 
+const fitnessGoalSchema = z.enum([
+  'MUSCLE_GAIN',
+  'FAT_LOSS',
+  'STRENGTH',
+  'FITNESS'
+]);
+
 const keySchema = z.object({
   loginKey: z
     .string()
     .trim()
-    .regex(/^\d{6}$/)
+    .regex(/^\d{6}$/, 'Gym Key must contain exactly 6 digits.')
 });
 
-const registerSchema = z.object({
+const registerRequestSchema = z.object({
   name: z
     .string()
     .trim()
@@ -62,6 +79,7 @@ const registerSchema = z.object({
 
   email: z
     .string()
+    .trim()
     .email(),
 
   phone: z
@@ -71,18 +89,22 @@ const registerSchema = z.object({
     .optional()
     .or(z.literal('')),
 
-  goal: z
-    .string()
-    .trim()
-    .max(120)
-    .optional()
-    .or(z.literal(''))
+  goal: fitnessGoalSchema
 });
 
-async function keyLogin(
-  req,
-  res
-) {
+const registerVerifySchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email(),
+
+  otp: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'OTP must contain exactly 6 digits.')
+});
+
+async function keyLogin(req, res) {
   const user = await loginByKey(
     req.body.loginKey
   );
@@ -98,6 +120,15 @@ async function keyLogin(
 }
 
 router.post(
+  '/login',
+  authLimiter,
+  validate(keySchema),
+  asyncRoute(keyLogin)
+);
+
+// Kept as a compatibility alias for older frontend builds.
+// It now behaves exactly like normal Gym Key login.
+router.post(
   '/quick-login',
   authLimiter,
   validate(keySchema),
@@ -105,20 +136,27 @@ router.post(
 );
 
 router.post(
-  '/login',
-  authLimiter,
-  validate(keySchema),
-  asyncRoute(keyLogin)
+  '/register/request',
+  registrationLimiter,
+  validate(registerRequestSchema),
+  asyncRoute(async (req, res) => {
+    const result =
+      await requestRegistration(req.body);
+
+    res.status(202).json(result);
+  })
 );
 
 router.post(
-  '/register',
-  authLimiter,
-  validate(registerSchema),
-
+  '/register/verify',
+  registrationLimiter,
+  validate(registerVerifySchema),
   asyncRoute(async (req, res) => {
     const user =
-      await registerMember(req.body);
+      await verifyRegistration(
+        req.body.email,
+        req.body.otp
+      );
 
     setSessionCookie(
       res,
@@ -126,7 +164,8 @@ router.post(
     );
 
     res.status(201).json({
-      user: publicUser(user)
+      user: publicUser(user),
+      loginKey: user.loginKey
     });
   })
 );
@@ -134,7 +173,6 @@ router.post(
 router.get(
   '/me',
   requireAuth,
-
   (req, res) => {
     res.json({
       user: req.user
@@ -145,13 +183,14 @@ router.get(
 router.post(
   '/recovery/request',
   recoveryLimiter,
-
   validate(
     z.object({
-      email: z.string().email()
+      email: z
+        .string()
+        .trim()
+        .email()
     })
   ),
-
   asyncRoute(async (req, res) => {
     res.json(
       await requestRecovery(
@@ -164,17 +203,19 @@ router.post(
 router.post(
   '/recovery/verify',
   recoveryLimiter,
-
   validate(
     z.object({
-      email: z.string().email(),
+      email: z
+        .string()
+        .trim()
+        .email(),
 
       otp: z
         .string()
+        .trim()
         .regex(/^\d{6}$/)
     })
   ),
-
   asyncRoute(async (req, res) => {
     res.json(
       await verifyRecovery(
